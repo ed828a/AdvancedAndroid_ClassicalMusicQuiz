@@ -17,12 +17,14 @@
 package com.example.android.classicalmusicquiz;
 
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -40,6 +42,11 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
     private int mCurrentScore;
     private int mHighScore;
     private Button[] mButtons;
+
+    // Added by me for memory leakage.
+    private Bitmap bitmap = null;
+    private static final String LOG_TAG = QuizActivity.class.getSimpleName();
+
 
 
     @Override
@@ -69,7 +76,15 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
         mAnswerSampleID = QuizUtils.getCorrectAnswerID(mQuestionSampleIDs);
 
         // Load the image of the composer for the answer into the ImageView.
-        composerView.setImageBitmap(Sample.getComposerArtBySampleID(this, mAnswerSampleID));
+
+        try {
+            bitmap = Sample.getComposerArtBySampleID(this, mAnswerSampleID);
+        } catch (OutOfMemoryError error) {
+            Log.v(LOG_TAG, "Catch memory leakage Exception. " + error.toString());
+            error.printStackTrace();
+
+        }
+        composerView.setImageBitmap(bitmap);
 
         // If there is only one answer left, end the game.
         if (mQuestionSampleIDs.size() < 2) {
@@ -81,6 +96,17 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
         mButtons = initializeButtons(mQuestionSampleIDs);
     }
 
+    @Override
+    protected void onDestroy() {
+
+        // recycle the memory everytime when activity destroyed. otherwise, there are memory leakage.
+        if (bitmap != null){
+            Log.v(LOG_TAG, "onDestroy called, and memory released");
+            bitmap.recycle();
+            bitmap = null;
+        }
+        super.onDestroy();
+    }
 
     /**
      * Initializes the button to the correct views, and sets the text to the composers names,
