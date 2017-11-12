@@ -29,6 +29,9 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 
+import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.android.exoplayer2.ui.SimpleExoPlayerView;
+
 import java.util.ArrayList;
 
 public class QuizActivity extends AppCompatActivity implements View.OnClickListener {
@@ -42,6 +45,8 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
     private int mCurrentScore;
     private int mHighScore;
     private Button[] mButtons;
+    private SimpleExoPlayerView mPlayerView;
+    private SimpleExoPlayer mExoPlayer;
 
     // Added by me for memory leakage.
     private Bitmap bitmap = null;
@@ -54,7 +59,7 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_quiz);
 
-        ImageView composerView = (ImageView) findViewById(R.id.composerView);
+        mPlayerView = (SimpleExoPlayerView) findViewById(R.id.playerView);
 
         boolean isNewGame = !getIntent().hasExtra(REMAINING_SONGS_KEY);
 
@@ -84,7 +89,7 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
             error.printStackTrace();
 
         }
-        composerView.setImageBitmap(bitmap);
+//        composerView.setImageBitmap(bitmap);
 
         // If there is only one answer left, end the game.
         if (mQuestionSampleIDs.size() < 2) {
