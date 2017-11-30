@@ -59,7 +59,7 @@ import java.util.ArrayList;
 
 public class QuizActivity extends AppCompatActivity implements View.OnClickListener, ExoPlayer.EventListener {
 
-    private static final int CORRECT_ANSWER_DELAY_MILLIS = 1000;
+    private static final int CORRECT_ANSWER_DELAY_MILLIS = 3000;
     private static final String REMAINING_SONGS_KEY = "remaining_songs";
     private static final String TAG = QuizActivity.class.getSimpleName();
     private int[] mButtonIDs = {R.id.buttonA, R.id.buttonB, R.id.buttonC, R.id.buttonD};
@@ -201,6 +201,7 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
 
         int icon;
         String play_pause;
+
         if(state.getState() == PlaybackStateCompat.STATE_PLAYING){
             icon = R.drawable.exo_controls_pause;
             play_pause = getString(R.string.pause);

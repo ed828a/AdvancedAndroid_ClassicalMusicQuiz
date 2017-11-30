@@ -131,8 +131,8 @@ class Sample {
         try {
             reader.beginObject();
             while (reader.hasNext()) {
-                String name = reader.nextName();
-                switch (name) {
+                String key = reader.nextName();
+                switch (key) {
                     case "name":
                         title = reader.nextString();
                         break;
