@@ -18,19 +18,28 @@ package com.example.android.classicalmusicquiz;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ImageView;
+import android.widget.Toast;
 
+import com.google.android.exoplayer2.DefaultLoadControl;
+import com.google.android.exoplayer2.ExoPlayerFactory;
 import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory;
+import com.google.android.exoplayer2.source.ExtractorMediaSource;
+import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.ui.SimpleExoPlayerView;
+import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
+import com.google.android.exoplayer2.util.Util;
 
 import java.util.ArrayList;
 
@@ -49,7 +58,6 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
     private SimpleExoPlayer mExoPlayer;
 
     // Added by me for memory leakage.
-    private Bitmap bitmap = null;
     private static final String LOG_TAG = QuizActivity.class.getSimpleName();
 
 
@@ -80,17 +88,6 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
         mQuestionSampleIDs = QuizUtils.generateQuestion(mRemainingSampleIDs);
         mAnswerSampleID = QuizUtils.getCorrectAnswerID(mQuestionSampleIDs);
 
-        // Load the image of the composer for the answer into the ImageView.
-
-        try {
-            bitmap = Sample.getComposerArtBySampleID(this, mAnswerSampleID);
-        } catch (OutOfMemoryError error) {
-            Log.v(LOG_TAG, "Catch memory leakage Exception. " + error.toString());
-            error.printStackTrace();
-
-        }
-//        composerView.setImageBitmap(bitmap);
-
         // If there is only one answer left, end the game.
         if (mQuestionSampleIDs.size() < 2) {
             QuizUtils.endGame(this);
@@ -99,18 +96,52 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
 
         // Initialize the buttons with the composers names.
         mButtons = initializeButtons(mQuestionSampleIDs);
+        // Replace default Artwork to question_mark
+        mPlayerView.setDefaultArtwork(BitmapFactory.decodeResource(getResources(), R.drawable.question_mark));
+
+        // Create a Sample object using the Sample.getSampleByID() method and passing in mAnswerSampleID;
+        Sample answerSample = Sample.getSampleByID(this, mAnswerSampleID);
+        if (answerSample == null){
+            Toast.makeText(this, getString(R.string.sample_not_found_error), Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // initialize Player with answerSample Uri.
+        initializePlayer(Uri.parse(answerSample.getUri()));
+    }
+
+    /**
+     * Initialize Player
+     * @param mediaUri the sample Uri to play
+     */
+    private void initializePlayer(Uri mediaUri){
+        if (mExoPlayer == null){
+            // Create an instance of the ExoPlayer
+            mExoPlayer = ExoPlayerFactory.newSimpleInstance(this,
+                    new DefaultTrackSelector(), new DefaultLoadControl());
+            // Bind the player with the playerView
+            mPlayerView.setPlayer(mExoPlayer);
+            // Prepare the MediaSource
+            String userAgent = Util.getUserAgent(this, "ClassicalMusicQuiz");
+            MediaSource mediaSource = new ExtractorMediaSource(mediaUri,
+                    new DefaultDataSourceFactory(this, userAgent),
+                    new DefaultExtractorsFactory(),
+                    null, null);
+            mExoPlayer.prepare(mediaSource);
+            mExoPlayer.setPlayWhenReady(true);
+        }
     }
 
     @Override
     protected void onDestroy() {
-
-        // recycle the memory everytime when activity destroyed. otherwise, there are memory leakage.
-        if (bitmap != null){
-            Log.v(LOG_TAG, "onDestroy called, and memory released");
-            bitmap.recycle();
-            bitmap = null;
-        }
         super.onDestroy();
+        releasePlayer();
+    }
+
+    private void releasePlayer() {
+        mExoPlayer.stop();
+        mExoPlayer.release();
+        mExoPlayer = null;
     }
 
     /**
@@ -180,6 +211,7 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
+                mExoPlayer.stop();
                 Intent nextQuestionIntent = new Intent(QuizActivity.this, QuizActivity.class);
                 nextQuestionIntent.putExtra(REMAINING_SONGS_KEY, mRemainingSampleIDs);
                 finish();
