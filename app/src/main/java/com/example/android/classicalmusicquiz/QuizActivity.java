@@ -186,32 +186,20 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
 
         @Override
         public void onPlay() {
-            super.onPlay();
-            // set playback state
-            mStateBuilder.setState(PlaybackStateCompat.STATE_PLAYING,
-                    mExoPlayer.getCurrentPosition(), 1f);
-            // update MediaSession playback state
-            mMediaSession.setPlaybackState(mStateBuilder.build());
+            mExoPlayer.setPlayWhenReady(true); // trigger to call onPlayerStateChanged()
+                                               // to update Media Session Playback State
         }
 
         @Override
         public void onPause() {
-            super.onPause();
-            // set playback state
-            mStateBuilder.setState(PlaybackStateCompat.STATE_PAUSED,
-                    mExoPlayer.getCurrentPosition(), 1f);
-            // update MediaSession playback state
-            mMediaSession.setPlaybackState(mStateBuilder.build());
+            mExoPlayer.setPlayWhenReady(false); // trigger to call onPlayerStateChanged()
+                                                // to update Media Session Playback State
         }
 
         @Override
         public void onSkipToPrevious() {
-            super.onSkipToPrevious();
-            // set playback state
-            mStateBuilder.setState(PlaybackStateCompat.STATE_SKIPPING_TO_PREVIOUS,
-                    mExoPlayer.getCurrentPosition(), 1f);
-            // update MediaSession playback state
-            mMediaSession.setPlaybackState(mStateBuilder.build());
+            mExoPlayer.seekTo(0); // trigger to call onPlayerStateChanged()
+                                             // to update Media Session Playback State
         }
     }
 
@@ -228,6 +216,7 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
         mStateBuilder = new PlaybackStateCompat.Builder()
                 .setActions(PlaybackStateCompat.ACTION_PLAY |
                             PlaybackStateCompat.ACTION_PAUSE |
+                            PlaybackStateCompat.ACTION_PLAY_PAUSE |
                             PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS);
         // initial MediaSession playback states
         mMediaSession.setPlaybackState(mStateBuilder.build());
@@ -366,10 +355,12 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
     public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
         if (playbackState == ExoPlayer.STATE_READY){
             if (playWhenReady){
-                mStateBuilder.setState(PlaybackStateCompat.STATE_PLAYING, mExoPlayer.getCurrentPosition(), 1f);
+                mStateBuilder.setState(PlaybackStateCompat.STATE_PLAYING,
+                        mExoPlayer.getCurrentPosition(), 1f);
             } else {
                 // pausing
-                mStateBuilder.setState(PlaybackStateCompat.STATE_PAUSED, mExoPlayer.getCurrentPosition(), 1f);
+                mStateBuilder.setState(PlaybackStateCompat.STATE_PAUSED,
+                        mExoPlayer.getCurrentPosition(), 1f);
             }
         }
         mMediaSession.setPlaybackState(mStateBuilder.build());
