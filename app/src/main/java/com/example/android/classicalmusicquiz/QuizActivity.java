@@ -20,23 +20,31 @@ import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
+import android.media.session.PlaybackState;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
 import com.google.android.exoplayer2.DefaultLoadControl;
+import com.google.android.exoplayer2.ExoPlaybackException;
+import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.ExoPlayerFactory;
 import com.google.android.exoplayer2.LoadControl;
 import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory;
 import com.google.android.exoplayer2.source.ExtractorMediaSource;
 import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
+import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.trackselection.TrackSelector;
 import com.google.android.exoplayer2.ui.SimpleExoPlayerView;
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
@@ -44,8 +52,10 @@ import com.google.android.exoplayer2.util.Util;
 
 import java.util.ArrayList;
 
-// TODO (1): Have this Activity implement ExoPlayer.EventListener and add the required methods.
-public class QuizActivity extends AppCompatActivity implements View.OnClickListener {
+// Have this Activity implement ExoPlayer.EventListener and add the required methods.
+public class QuizActivity extends AppCompatActivity implements View.OnClickListener, ExoPlayer.EventListener {
+
+    private static final String TAG = QuizActivity.class.getSimpleName();
 
     private static final int CORRECT_ANSWER_DELAY_MILLIS = 1000;
     private static final String REMAINING_SONGS_KEY = "remaining_songs";
@@ -58,6 +68,11 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
     private Button[] mButtons;
     private SimpleExoPlayer mExoPlayer;
     private SimpleExoPlayerView mPlayerView;
+    private MediaSessionCompat mMediaSession;
+    private PlaybackStateCompat.Builder mStateBuilder;
+
+
+
 
 
     @Override
@@ -112,6 +127,9 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
 
         // Initialize the player.
         initializePlayer(Uri.parse(answerSample.getUri()));
+
+        // Initialize the MeidaSession
+        initializeMediaSession();
     }
 
 
@@ -149,8 +167,9 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
             mExoPlayer = ExoPlayerFactory.newSimpleInstance(this, trackSelector, loadControl);
             mPlayerView.setPlayer(mExoPlayer);
 
-            // TODO (2): Set the ExoPlayer.EventListener to this activity
-            
+            // Set the ExoPlayer.EventListener to this activity.
+            mExoPlayer.addListener(this);
+
             // Prepare the MediaSource.
             String userAgent = Util.getUserAgent(this, "ClassicalMusicQuiz");
             MediaSource mediaSource = new ExtractorMediaSource(mediaUri, new DefaultDataSourceFactory(
@@ -160,6 +179,63 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    private class MySessionCallbacks extends MediaSessionCompat.Callback {
+
+        public MySessionCallbacks() {
+        }
+
+        @Override
+        public void onPlay() {
+            super.onPlay();
+            // set playback state
+            mStateBuilder.setState(PlaybackStateCompat.STATE_PLAYING,
+                    mExoPlayer.getCurrentPosition(), 1f);
+            // update MediaSession playback state
+            mMediaSession.setPlaybackState(mStateBuilder.build());
+        }
+
+        @Override
+        public void onPause() {
+            super.onPause();
+            // set playback state
+            mStateBuilder.setState(PlaybackStateCompat.STATE_PAUSED,
+                    mExoPlayer.getCurrentPosition(), 1f);
+            // update MediaSession playback state
+            mMediaSession.setPlaybackState(mStateBuilder.build());
+        }
+
+        @Override
+        public void onSkipToPrevious() {
+            super.onSkipToPrevious();
+            // set playback state
+            mStateBuilder.setState(PlaybackStateCompat.STATE_SKIPPING_TO_PREVIOUS,
+                    mExoPlayer.getCurrentPosition(), 1f);
+            // update MediaSession playback state
+            mMediaSession.setPlaybackState(mStateBuilder.build());
+        }
+    }
+
+
+    private void initializeMediaSession(){
+        // Create a MediaSession object
+        mMediaSession = new MediaSessionCompat(this, TAG);
+        // Set the Flags
+        mMediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
+                                MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
+        // Set an optional Media-Button-Receiver component
+        mMediaSession.setMediaButtonReceiver(null);
+        // Set the available actions
+        mStateBuilder = new PlaybackStateCompat.Builder()
+                .setActions(PlaybackStateCompat.ACTION_PLAY |
+                            PlaybackStateCompat.ACTION_PAUSE |
+                            PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS);
+        // initial MediaSession playback states
+        mMediaSession.setPlaybackState(mStateBuilder.build());
+        // Set the Callbacks
+        mMediaSession.setCallback(new MySessionCallbacks());
+        // Start the MediaSession
+        mMediaSession.setActive(true);
+    }
 
     /**
      * Release ExoPlayer.
@@ -258,7 +334,55 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
     protected void onDestroy() {
         super.onDestroy();
         releasePlayer();
+        // End the MediaSession
+        mMediaSession.setActive(false);
     }
 
-    // TODO (3): Add conditional logging statements to the onPlayerStateChanged() method that log when ExoPlayer is playing or paused.
+    @Override
+    public void onTimelineChanged(Timeline timeline, Object manifest) {
+
+    }
+
+    @Override
+    public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
+
+    }
+
+    @Override
+    public void onLoadingChanged(boolean isLoading) {
+
+    }
+
+    /**
+     * This method updates the Media Session States to make sure Media Session Synchronized
+     * @param playWhenReady  A boolean, true: playing; false: pause
+     * @param playbackState a int, one of STATE constains:
+     *                              STATE_IDLE,       //The player does not have any media to play
+     *                              STATE_BUFFERING,  //The player is not able to immediately play from its current position. This state typically occurs when more data needs to be loaded.
+     *                              STATE_READY,      //The player is able to immediately play from its current position. The player will be playing if getPlayWhenReady() is true, and paused otherwise.
+     *                              STATE_ENDED       //The player has finished playing the media.
+     */
+    @Override
+    public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
+        if (playbackState == ExoPlayer.STATE_READY){
+            if (playWhenReady){
+                mStateBuilder.setState(PlaybackStateCompat.STATE_PLAYING, mExoPlayer.getCurrentPosition(), 1f);
+            } else {
+                // pausing
+                mStateBuilder.setState(PlaybackStateCompat.STATE_PAUSED, mExoPlayer.getCurrentPosition(), 1f);
+            }
+        }
+        mMediaSession.setPlaybackState(mStateBuilder.build());
+    }
+
+    @Override
+    public void onPlayerError(ExoPlaybackException error) {
+
+    }
+
+    @Override
+    public void onPositionDiscontinuity() {
+
+    }
+
 }
