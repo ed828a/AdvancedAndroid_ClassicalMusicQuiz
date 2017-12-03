@@ -131,30 +131,22 @@ public class QuizActivity extends AppCompatActivity implements View.OnClickListe
      * Create an inner class that extends MediaSessionCompat.Callbacks,
      * and override the onPlay(), onPause(), and onSkipToPrevious() callbacks.
      * Pass an instance of this class into the MediaSession.setCallback() method in initializeMediaSession
+     * those overridden methods will trigger to call onPlaybackStateChange() to update the playback state of MediaSession
      */
     private class MediaSessionCallbacks extends MediaSessionCompat.Callback{
         @Override
         public void onPlay() {
-            super.onPlay();
-            mPlaybackStateBuilder.setState(PlaybackStateCompat.STATE_PLAYING,
-                    mExoPlayer.getCurrentPosition(), 1f);
-            mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
+            mExoPlayer.setPlayWhenReady(true);
         }
 
         @Override
         public void onPause() {
-            super.onPause();
-            mPlaybackStateBuilder.setState(PlaybackStateCompat.STATE_PAUSED,
-                    mExoPlayer.getCurrentPosition(), 1f);
-            mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
+            mExoPlayer.setPlayWhenReady(false);
         }
 
         @Override
         public void onSkipToPrevious() {
-            super.onSkipToPrevious();
-            mPlaybackStateBuilder.setState(PlaybackStateCompat.STATE_SKIPPING_TO_PREVIOUS,
-                    mExoPlayer.getCurrentPosition(), 1f);
-            mMediaSession.setPlaybackState(mPlaybackStateBuilder.build());
+            mExoPlayer.seekTo(0);
         }
     }
 
